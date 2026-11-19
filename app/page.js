@@ -1,69 +1,459 @@
+"use client";
+
 import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { homeStyles as s } from "@/public/dummyStyles";
+
+const BG_VIDEO =
+  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4";
+
+const ANALYSIS_STEPS = [
+  "Connecting to GitHub profile",
+  "Reading contribution calendar",
+  "Measuring commit velocity",
+  "Scanning pull requests and reviews",
+  "Finding top languages",
+  "Building your GitWrapped card",
+];
+
+function GithubIcon({ className }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="currentColor"
+    >
+      <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.1 3.29 9.4 7.86 10.92.58.11.79-.25.79-.56v-2.17c-3.2.7-3.88-1.36-3.88-1.36-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.77 2.72 1.26 3.38.96.11-.75.41-1.26.74-1.55-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.47.11-3.06 0 0 .98-.31 3.18 1.18A11.1 11.1 0 0 1 12 5.96c.98 0 1.96.13 2.88.39 2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.77.12 3.06.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.4-5.27 5.69.42.36.8 1.07.8 2.16v3.18c0 .31.21.67.8.56A11.52 11.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+    </svg>
+  );
+}
+
+function TwitterIcon({ className }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="currentColor"
+    >
+      <path d="M17.7 3h3.2l-7 8 8.2 10h-6.4l-5-6.2L5 21H1.8l7.5-8.6L1.5 3h6.6l4.5 5.6L17.7 3Zm-1.1 16.2h1.8L7.1 4.7H5.2l11.4 14.5Z" />
+    </svg>
+  );
+}
+
+function LinkedinIcon({ className }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="currentColor"
+    >
+      <path d="M5.1 8.7H1.9V22h3.2V8.7ZM3.5 2A1.9 1.9 0 1 0 3.5 5.8 1.9 1.9 0 0 0 3.5 2Zm7.1 6.7H7.5V22h3.1v-6.6c0-1.7.3-3.4 2.5-3.4 2.1 0 2.1 2 2.1 3.5V22h3.2v-7.3c0-3.6-.8-6.3-4.9-6.3-2 0-3.3 1.1-3.8 2.1h-.1V8.7Z" />
+    </svg>
+  );
+}
+
+function DownloadIcon({ className }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M12 3v11" strokeLinecap="round" />
+      <path d="m7 10 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 21h14" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export default function Home() {
+  const currentYear = new Date().getFullYear();
+  const years = useMemo(
+    () => Array.from({ length: 6 }, (_, i) => currentYear - i),
+    [currentYear],
+  );
+
+  const [username, setUsername] = useState("");
+  const [selectedYears, setSelectedYears] = useState([currentYear]);
+  const [status, setStatus] = useState("idle");
+  const [progress, setProgress] = useState(0);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [downloadStatus, setDownloadStatus] = useState("idle");
+  const [origin, setOrigin] = useState("");
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  const cleanUsername = username.trim();
+  const yearsParam = selectedYears.join(",");
+  const yearsLabel =
+    selectedYears.length === 1
+      ? String(selectedYears[0])
+      : [...selectedYears].sort((a, b) => a - b).join(", ");
+  const imageUrl = cleanUsername
+    ? `/api/wrapped?user=${encodeURIComponent(cleanUsername)}&years=${encodeURIComponent(yearsParam)}`
+    : "";
+  const shareUrl = origin ? `${origin}${imageUrl}` : "";
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`I built my ${yearsLabel} GitWrapped card for @${cleanUsername}.`)}&url=${encodeURIComponent(shareUrl)}`;
+  const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+
+  useEffect(() => {
+    if (status !== "loading") return undefined;
+    let cancelled = false;
+
+    const progressTimer = setInterval(
+      () => setProgress((v) => Math.min(v + 3, 96)),
+      115,
+    );
+    const stepTimer = setInterval(
+      () => setStepIndex((v) => Math.min(v + 1, ANALYSIS_STEPS.length - 1)),
+      640,
+    );
+    const minWait = new Promise((r) => setTimeout(r, 2400));
+    const cardReady = new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = async () => {
+        try {
+          if (img.decode) await img.decode();
+        } catch {}
+        resolve();
+      };
+      img.onerror = async () => {
+        try {
+          const res = await fetch(imageUrl, { cache: "no-store" });
+          const body = await res.json().catch(() => ({}));
+          reject(
+            new Error(body.error || "Card could not be generated. Try again."),
+          );
+        } catch (e) {
+          reject(
+            e instanceof Error
+              ? e
+              : new Error("Card could not be generated. Try again."),
+          );
+        }
+      };
+      img.src = imageUrl;
+    });
+
+    Promise.all([minWait, cardReady])
+      .then(() => {
+        if (!cancelled) {
+          setProgress(100);
+          setStatus("ready");
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setErrorMessage(
+            e.message || "Card could not be generated. Try again.",
+          );
+          setStatus("error");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      clearInterval(progressTimer);
+      clearInterval(stepTimer);
+    };
+  }, [imageUrl, status]);
+
+  function toggleYear(item) {
+    setSelectedYears((cur) => {
+      if (cur.includes(item))
+        return cur.length === 1 ? cur : cur.filter((y) => y !== item);
+      return [...cur, item].sort((a, b) => b - a);
+    });
+  }
+
+  function resetFlow() {
+    setStatus("idle");
+    setProgress(0);
+    setStepIndex(0);
+    setErrorMessage("");
+    setDownloadStatus("idle");
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!cleanUsername) return;
+    setErrorMessage("");
+    setProgress(0);
+    setDownloadStatus("idle");
+    setStepIndex(0);
+
+    try {
+      const res = await fetch(
+        `https://api.github.com/users/${encodeURIComponent(cleanUsername)}`,
+        { headers: { Accept: "application/vnd.github+json" } },
+      );
+
+      if (res.status === 404)
+        throw new Error("That GitHub username doesn't exist.");
+      if (!res.ok)
+        throw new Error(
+          "GitHub couldn't verify that username. Please try again.",
+        );
+      const profile = await res.json();
+      if (profile.type && profile.type !== "User")
+        throw new Error("Enter a personal GitHub username, not an organization.");
+    } catch (err) {
+      setErrorMessage(err.message || "Enter a valid GitHub username.");
+      setStatus("error");
+      return;
+    }
+
+    setStatus("leaving");
+    setTimeout(() => setStatus("loading"), 420);
+  }
+
+  async function handleDownload() {
+    if (!imageUrl || downloadStatus === "downloading") return;
+    setDownloadStatus("downloading");
+
+    try {
+      const res = await fetch(imageUrl);
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gitwrapped-${cleanUsername}-${yearsParam}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setDownloadStatus("downloaded");
+    } catch {
+      setDownloadStatus("idle");
+      setErrorMessage("Download failed. Try again.");
+      setStatus("error");
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.js
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
+    <main className={s.main}>
+      <video
+        className={s.video}
+        src={BG_VIDEO}
+        autoPlay
+        loop
+        muted
+        playsInline
+      />
+      <div className={s.overlay} />
+
+      <nav className={s.nav}>
+        <div className={s.navInner}>
+          <Link href="/" className={s.navLink}>
+            GitWrapped
+          </Link>
           <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+            href="https://github.com/HexagonDigitalServices/gitwrapped/"
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noreferrer"
+            className={s.starButton}
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
+            <svg
+              className={s.starIcon}
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.1 3.29 9.4 7.86 10.92.58.11.79-.25.79-.56v-2.17c-3.2.7-3.88-1.36-3.88-1.36-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.77 2.72 1.26 3.38.96.11-.75.41-1.26.74-1.55-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.47.11-3.06 0 0 .98-.31 3.18 1.18A11.1 11.1 0 0 1 12 5.96c.98 0 1.96.13 2.88.39 2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.77.12 3.06.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.4-5.27 5.69.42.36.8 1.07.8 2.16v3.18c0 .31.21.67.8.56A11.52 11.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+            </svg>
+            Star on GitHub
           </a>
         </div>
-      </main>
-    </div>
+      </nav>
+
+      <section className={s.section}>
+        {(status === "idle" || status === "leaving") && (
+          <div
+            className={`${s.idleContainer} ${status === "leaving" ? s.fadeAway : s.fadeRise}`}
+          >
+            <h1 className={s.title}>
+              GitHub, <em className={s.emphasis}>Wrapped</em> for developers.
+            </h1>
+            <p className={s.subtitle}>
+              Turn your GitHub activity into a polished year-in-review card.
+              Pick years, enter your username, and see your contributions,
+              languages, repositories, streaks, and developer personality across
+              the years you pick.
+            </p>
+
+            <div className={s.formWrapper}>
+              <form onSubmit={handleSubmit} className={s.form}>
+                <label className={s.label}>
+                  <GithubIcon className="h-5 w-5 shrink-0 text-white/72" />
+                  <input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    autoComplete="off"
+                    placeholder="Enter GitHub username..."
+                    className={s.input}
+                  />
+                </label>
+                <div className={s.yearRow}>
+                  <div className={s.yearSelector}>
+                    <span className={s.yearLabel}>Years</span>
+                    {years.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => toggleYear(item)}
+                        className={`${s.yearBtnBase} ${selectedYears.includes(item) ? s.yearSelected : s.yearUnselected}`}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="submit" className={s.submitBtn}>
+                    Generate GitWrapped
+                  </button>
+                </div>
+              </form>
+              <p className={s.footerNote}>
+                No sign-up required - powered by GitHub data
+              </p>
+            </div>
+          </div>
+        )}
+
+        {status === "loading" && (
+          <div className={s.loadingContainer}>
+            <div className={s.loadingCard}>
+              <div className={s.loadingTop}>
+                <div>
+                  <p className={s.loadingLabel}>Analyzing profile</p>
+                  <h2 className={s.loadingUsername}>@{cleanUsername}</h2>
+                </div>
+                <div className={s.loadingAvatar}>
+                  <GithubIcon className="h-8 w-8 text-white/72" />
+                </div>
+              </div>
+              <div className={s.loadingStatus}>
+                <span className={s.loadingDot} />
+                {ANALYSIS_STEPS[stepIndex]}
+              </div>
+              <div className={s.progressTrack}>
+                <div
+                  className={s.progressFill}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className={s.progressFooter}>
+                <span>{yearsLabel} activity scan</span>
+                <span>{progress}%</span>
+              </div>
+              <div className={s.loadingGrid}>
+                {["Commits", "Languages", "Streaks"].map((label, i) => (
+                  <div key={label} className={s.queueItem}>
+                    <p className={s.queueLabel}>Queue {i + 1}</p>
+                    <p className={s.queueValue}>{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {status === "ready" && (
+          <div className={s.readyContainer}>
+            <div className={s.readyCard}>
+              <Image
+                src={imageUrl}
+                alt={`${cleanUsername} GitWrapped ${yearsLabel} card`}
+                width={1200}
+                height={720}
+                unoptimized
+                className={s.cardImage}
+              />
+            </div>
+            <div className={s.actionRow}>
+              <a
+                href={twitterUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={s.shareCard}
+              >
+                <span className={s.actionText}>
+                  <TwitterIcon className="h-4 w-4" />
+                  Share on Twitter
+                </span>
+                <span className={s.actionSub}>
+                  Post your GitWrapped card link
+                </span>
+              </a>
+
+              <a
+                href={linkedinUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={s.shareCard}
+              >
+                <span className={s.actionText}>
+                  <LinkedinIcon className="h-4 w-4" />
+                  Share on LinkedIn
+                </span>
+                <span className={s.actionSub}>Share your year in code</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={handleDownload}
+                disabled={downloadStatus === "downloading"}
+                className={s.shareCard}
+              >
+                <span className={s.actionText}>
+                  {downloadStatus === "downloading" ? (
+                    <span className={s.spinner} />
+                  ) : (
+                    <DownloadIcon className="h-4 w-4" />
+                  )}
+                  {downloadStatus === "downloading"
+                    ? "Downloading..."
+                    : downloadStatus === "downloaded"
+                      ? "Downloaded"
+                      : "Download"}
+                </span>
+                <span className={s.actionSub}>
+                  {downloadStatus === "downloaded"
+                    ? "Saved as a PNG card"
+                    : "Save as a PNG card"}
+                </span>
+              </button>
+            </div>
+            <button type="button" onClick={resetFlow} className={s.resetBtn}>
+              Build another card
+            </button>
+          </div>
+        )}
+
+        {status === "error" && (
+          <div className={s.errorContainer}>
+            <div className={s.errorCard}>
+              <p className={s.errorLabel}>Generation failed</p>
+              <h2 className={s.errorTitle}>Card is not ready.</h2>
+              <p className={s.errorDesc}>{errorMessage}</p>
+              <button type="button" onClick={resetFlow} className={s.errorBtn}>
+                Try again
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
