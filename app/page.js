@@ -259,7 +259,7 @@ export default function Home() {
             GitWrapped
           </Link>
           <a
-            href="https://github.com/HexagonDigitalServices/gitwrapped/"
+            href="https://github.com/Hansani-Warawita/GitWrapp"
             target="_blank"
             rel="noreferrer"
             className={s.starButton}
